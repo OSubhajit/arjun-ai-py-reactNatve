@@ -49,11 +49,11 @@ export default function ChatScreen() {
   ];
 
   useEffect(() => {
-    // Welcome message
+    // Welcome message from Arjun
     setMessages([
       {
         id: '1',
-        text: `Namaste ${user?.name || 'Friend'}! 🙏\n\nI am Arjun, your spiritual guide. I'm here to help you navigate life's challenges through the timeless wisdom of the Bhagavad Gita.\n\nHow may I assist you on your journey today?`,
+        text: `Namaste, ${user?.name || 'friend'}. 🙏\n\nI am Arjun, the warrior from Kurukshetra. I have walked through confusion, fear, and doubt — just as you may be walking now.\n\nKrishna guided me through my darkest moments. Let me share what I learned with you.\n\nWhat weighs on your heart today?`,
         isUser: false,
         timestamp: new Date(),
       },
@@ -77,7 +77,10 @@ export default function ChatScreen() {
     try {
       const response = await axios.post(
         `${BACKEND_URL}/api/chat/send`,
-        { message: messageText.trim() },
+        { 
+          message: messageText.trim(),
+          mode: selectedMode 
+        },
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -202,12 +205,46 @@ export default function ChatScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Ionicons name="flower-outline" size={32} color={Colors.sacred} />
-        <Text style={styles.headerTitle}>Arjun AI</Text>
+        <Text style={styles.headerTitle}>Arjun</Text>
         <View style={styles.headerSubtitle}>
           <View style={styles.onlineIndicator} />
-          <Text style={styles.onlineText}>Available</Text>
+          <Text style={styles.onlineText}>Listening</Text>
         </View>
       </View>
+
+      {/* Mode Selector */}
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false}
+        style={styles.modeSelector}
+        contentContainerStyle={styles.modeSelectorContent}
+      >
+        {chatModes.map((mode) => (
+          <TouchableOpacity
+            key={mode.id}
+            style={[
+              styles.modeButton,
+              selectedMode === mode.id && { 
+                backgroundColor: mode.color + '20',
+                borderColor: mode.color,
+              }
+            ]}
+            onPress={() => setSelectedMode(mode.id)}
+          >
+            <Ionicons 
+              name={mode.icon as any} 
+              size={18} 
+              color={selectedMode === mode.id ? mode.color : Colors.textMuted} 
+            />
+            <Text style={[
+              styles.modeButtonText,
+              selectedMode === mode.id && { color: mode.color }
+            ]}>
+              {mode.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
 
       {/* Messages */}
       <FlatList
@@ -384,5 +421,31 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     opacity: 0.4,
+  },
+  modeSelector: {
+    backgroundColor: Colors.darkGray,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  modeSelectorContent: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    gap: Spacing.sm,
+  },
+  modeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.full,
+    backgroundColor: Colors.mediumDark,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    gap: Spacing.xs,
+  },
+  modeButtonText: {
+    color: Colors.textMuted,
+    fontSize: FontSizes.sm,
+    fontWeight: '600',
   },
 });
