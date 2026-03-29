@@ -131,7 +131,20 @@
     </div>
 
     <script>
-        const API_URL = 'http://localhost:8002/api/admin';
+        // Auto-detect backend URL
+        const getBackendUrl = () => {
+            const currentHost = window.location.hostname;
+            // If accessing via preview URL, use the same domain with port 8002
+            if (currentHost.includes('preview.emergentagent.com')) {
+                return window.location.origin.replace(':8003', ':8002') + '/api/admin';
+            }
+            // Otherwise use localhost
+            return 'http://localhost:8002/api/admin';
+        };
+        
+        const API_URL = getBackendUrl();
+        console.log('🔌 Connecting to API:', API_URL);
+        
         let token = localStorage.getItem('admin_token');
         let currentTab = 'overview';
 
