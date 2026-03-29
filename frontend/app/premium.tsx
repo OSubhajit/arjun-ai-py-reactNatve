@@ -14,8 +14,8 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import axios from 'axios';
-import { Colors, Spacing, FontSizes, BorderRadius } from '../../constants/theme';
-import { useAuth } from '../../contexts/AuthContext';
+import { Colors, Spacing, FontSizes, BorderRadius } from '../constants/theme';
+import { useAuth } from '../contexts/AuthContext';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
