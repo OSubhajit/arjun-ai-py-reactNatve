@@ -103,7 +103,10 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         if user_id is None:
             raise HTTPException(status_code=401, detail="Invalid authentication credentials")
         
-        user = await db.users.find_one({"_id": ObjectId(user_id)})
+        user = await db.users.find_one(
+            {"_id": ObjectId(user_id)},
+            {"_id": 1, "name": 1, "email": 1, "password": 1, "total_chats": 1, "current_streak": 1, "longest_streak": 1, "last_activity_date": 1}
+        )
         if user is None:
             raise HTTPException(status_code=401, detail="User not found")
         
@@ -405,7 +408,8 @@ async def send_chat_message(
         
         # Get recent chat history for context
         recent_chats = await db.chats.find(
-            {"user_id": ObjectId(user_id)}
+            {"user_id": ObjectId(user_id)},
+            {"message": 1, "response": 1}
         ).sort("timestamp", -1).limit(5).to_list(length=5)
         
         # Reverse to get chronological order
@@ -457,7 +461,8 @@ async def get_chat_history(
         user_id = str(current_user["_id"])
         
         chats = await db.chats.find(
-            {"user_id": ObjectId(user_id)}
+            {"user_id": ObjectId(user_id)},
+            {"_id": 1, "message": 1, "response": 1, "timestamp": 1}
         ).sort("timestamp", -1).limit(limit).to_list(length=limit)
         
         return [{
@@ -601,7 +606,10 @@ async def get_streak(current_user: dict = Depends(get_current_user)):
         user_id = str(current_user["_id"])
         
         # Get user's streak data
-        user = await db.users.find_one({"_id": ObjectId(user_id)})
+        user = await db.users.find_one(
+            {"_id": ObjectId(user_id)},
+            {"current_streak": 1, "longest_streak": 1, "last_activity_date": 1}
+        )
         
         current_streak = user.get("current_streak", 0)
         longest_streak = user.get("longest_streak", 0)
