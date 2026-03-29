@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -6,7 +6,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 from pathlib import Path
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, validator
 from typing import List, Optional
 from datetime import datetime, timedelta
 from passlib.context import CryptContext
@@ -14,6 +14,10 @@ import jwt
 from bson import ObjectId
 import secrets
 from emergentintegrations.llm.chat import LlmChat, UserMessage
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+import re
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -38,6 +42,11 @@ EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY')
 # Create the main app
 app = FastAPI(title="Arjun AI API")
 api_router = APIRouter(prefix="/api")
+
+# Rate Limiter
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Configure logging
 logging.basicConfig(
@@ -67,6 +76,23 @@ class ResetPassword(BaseModel):
 class ChatMessage(BaseModel):
     message: str
     mode: Optional[str] = "general"  # general, meditation, decision, heartbreak, study
+    
+    @validator('message')
+    def validate_message(cls, v):
+        if not v or not v.strip():
+            raise ValueError('Message cannot be empty')
+        if len(v) > 2000:
+            raise ValueError('Message too long (max 2000 characters)')
+        # Remove any potentially harmful scripts/HTML
+        v = re.sub(r'<[^>]*>', '', v)
+        return v.strip()
+    
+    @validator('mode')
+    def validate_mode(cls, v):
+        allowed_modes = ['general', 'meditation', 'decision', 'heartbreak', 'study']
+        if v not in allowed_modes:
+            return 'general'
+        return v
 
 class ChatResponse(BaseModel):
     id: str
@@ -80,6 +106,26 @@ class UserProfile(BaseModel):
     email: str
     created_at: datetime
     total_chats: int
+
+class Feedback(BaseModel):
+    type: str  # "issue" or "feedback"
+    message: str
+    contact_preference: str  # "email" or "whatsapp"
+    
+    @validator('message')
+    def validate_feedback(cls, v):
+        if not v or not v.strip():
+            raise ValueError('Feedback cannot be empty')
+        if len(v) > 1000:
+            raise ValueError('Feedback too long (max 1000 characters)')
+        v = re.sub(r'<[^>]*>', '', v)  # Remove HTML
+        return v.strip()
+    
+    @validator('type')
+    def validate_type(cls, v):
+        if v not in ['issue', 'feedback']:
+            return 'feedback'
+        return v
 
 # Helper Functions
 def hash_password(password: str) -> str:
@@ -255,7 +301,8 @@ You are a fellow seeker, sharing what you learned."""
 
 # Auth Routes
 @api_router.post("/auth/register")
-async def register(user_data: UserRegister):
+@limiter.limit("5/hour")
+async def register(request: Request, user_data: UserRegister):
     """Register a new user"""
     try:
         # Check if user already exists
@@ -295,7 +342,8 @@ async def register(user_data: UserRegister):
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/auth/login")
-async def login(user_data: UserLogin):
+@limiter.limit("10/minute")
+async def login(request: Request, user_data: UserLogin):
     """Login user"""
     try:
         user = await db.users.find_one({"email": user_data.email})
@@ -398,7 +446,9 @@ async def reset_password(data: ResetPassword):
 
 # Chat Routes
 @api_router.post("/chat/send")
+@limiter.limit("30/minute")
 async def send_chat_message(
+    request: Request,
     message_data: ChatMessage,
     current_user: dict = Depends(get_current_user)
 ):
@@ -674,6 +724,44 @@ async def get_streak(current_user: dict = Depends(get_current_user)):
         }
     except Exception as e:
         logger.error(f"Get streak error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Feedback Routes
+@api_router.post("/feedback")
+@limiter.limit("5/minute")
+async def submit_feedback(
+    request: Request,
+    feedback_data: Feedback,
+    current_user: dict = Depends(get_current_user)
+):
+    """Submit user feedback or report issues"""
+    try:
+        user_id = str(current_user["_id"])
+        
+        # Store feedback in database
+        feedback_entry = {
+            "user_id": ObjectId(user_id),
+            "user_email": current_user["email"],
+            "user_name": current_user["name"],
+            "type": feedback_data.type,
+            "message": feedback_data.message,
+            "contact_preference": feedback_data.contact_preference,
+            "timestamp": datetime.utcnow(),
+            "status": "pending"
+        }
+        
+        await db.feedback.insert_one(feedback_entry)
+        
+        # Log for email/WhatsApp notification (in production, send actual notification)
+        contact_info = "subhajitsarkar0708@gmail.com" if feedback_data.contact_preference == "email" else "6026705234"
+        logger.info(f"FEEDBACK RECEIVED - Type: {feedback_data.type}, From: {current_user['email']}, Contact: {contact_info}, Message: {feedback_data.message}")
+        
+        return {
+            "message": "Thank you for your feedback! We'll get back to you soon.",
+            "contact_method": feedback_data.contact_preference
+        }
+    except Exception as e:
+        logger.error(f"Feedback error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # Health check

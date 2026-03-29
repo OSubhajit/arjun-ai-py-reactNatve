@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,16 +6,68 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  TextInput,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import axios from 'axios';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../constants/theme';
 import { useAuth } from '../../contexts/AuthContext';
 
+const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+
 export default function SettingsScreen() {
   const router = useRouter();
-  const { logout } = useAuth();
+  const { logout, token } = useAuth();
+  const [feedbackModal, setFeedbackModal] = useState(false);
+  const [feedbackType, setFeedbackType] = useState('feedback');
+  const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [contactPreference, setContactPreference] = useState('email');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmitFeedback = async () => {
+    if (!feedbackMessage.trim()) {
+      Alert.alert('Error', 'Please enter your feedback');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await axios.post(
+        `${BACKEND_URL}/api/feedback`,
+        {
+          type: feedbackType,
+          message: feedbackMessage,
+          contact_preference: contactPreference,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      Alert.alert(
+        'Thank You!',
+        'Your feedback has been received. We will get back to you soon via ' + contactPreference + '.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              setFeedbackModal(false);
+              setFeedbackMessage('');
+            },
+          },
+        ]
+      );
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'Failed to submit feedback');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleLogout = () => {
     Alert.alert(
@@ -150,20 +202,29 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>Support</Text>
           <View style={styles.sectionContent}>
             <SettingItem
+              icon="bug-outline"
+              title="Report an Issue"
+              subtitle="Something not working?"
+              onPress={() => {
+                setFeedbackType('issue');
+                setFeedbackModal(true);
+              }}
+            />
+            <SettingItem
+              icon="chatbox-ellipses-outline"
+              title="Give Feedback"
+              subtitle="Help us improve GitaPath"
+              onPress={() => {
+                setFeedbackType('feedback');
+                setFeedbackModal(true);
+              }}
+            />
+            <SettingItem
               icon="help-circle-outline"
               title="Help & FAQ"
               onPress={() => Alert.alert(
                 'Help',
                 'For assistance, please visit our website or contact support.'
-              )}
-            />
-            <SettingItem
-              icon="chatbox-ellipses-outline"
-              title="Contact Us"
-              subtitle="Get in touch with our team"
-              onPress={() => Alert.alert(
-                'Contact Us',
-                'Email: support@gitapath.com'
               )}
             />
           </View>
@@ -191,6 +252,97 @@ export default function SettingsScreen() {
           <Text style={styles.quoteReference}>— Bhagavad Gita 2.48</Text>
         </View>
       </ScrollView>
+
+      {/* Feedback Modal */}
+      <Modal
+        visible={feedbackModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setFeedbackModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {feedbackType === 'issue' ? 'Report an Issue' : 'Give Feedback'}
+              </Text>
+              <TouchableOpacity onPress={() => setFeedbackModal(false)}>
+                <Ionicons name="close" size={24} color={Colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalSubtitle}>
+              {feedbackType === 'issue' 
+                ? 'Let us know what went wrong' 
+                : 'Help us make GitaPath better'}
+            </Text>
+
+            <TextInput
+              style={styles.feedbackInput}
+              placeholder="Type your message here..."
+              placeholderTextColor={Colors.textMuted}
+              value={feedbackMessage}
+              onChangeText={setFeedbackMessage}
+              multiline
+              numberOfLines={6}
+              textAlignVertical="top"
+            />
+
+            <Text style={styles.contactLabel}>How should we reach you?</Text>
+            <View style={styles.contactOptions}>
+              <TouchableOpacity
+                style={[
+                  styles.contactOption,
+                  contactPreference === 'email' && styles.contactOptionActive
+                ]}
+                onPress={() => setContactPreference('email')}
+              >
+                <Ionicons 
+                  name="mail" 
+                  size={20} 
+                  color={contactPreference === 'email' ? Colors.sacred : Colors.textMuted} 
+                />
+                <Text style={[
+                  styles.contactOptionText,
+                  contactPreference === 'email' && styles.contactOptionTextActive
+                ]}>
+                  Email
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.contactOption,
+                  contactPreference === 'whatsapp' && styles.contactOptionActive
+                ]}
+                onPress={() => setContactPreference('whatsapp')}
+              >
+                <Ionicons 
+                  name="logo-whatsapp" 
+                  size={20} 
+                  color={contactPreference === 'whatsapp' ? Colors.sacred : Colors.textMuted} 
+                />
+                <Text style={[
+                  styles.contactOptionText,
+                  contactPreference === 'whatsapp' && styles.contactOptionTextActive
+                ]}>
+                  WhatsApp
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
+              onPress={handleSubmitFeedback}
+              disabled={isSubmitting}
+            >
+              <Text style={styles.submitButtonText}>
+                {isSubmitting ? 'Submitting...' : 'Submit'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -278,5 +430,92 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.xs,
     color: Colors.textMuted,
     marginTop: Spacing.sm,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: Colors.darkGray,
+    borderTopLeftRadius: BorderRadius.xl,
+    borderTopRightRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    minHeight: 500,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  modalTitle: {
+    fontSize: FontSizes.xl,
+    fontWeight: 'bold',
+    color: Colors.sacred,
+  },
+  modalSubtitle: {
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.lg,
+  },
+  feedbackInput: {
+    backgroundColor: Colors.inputBackground,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    color: Colors.text,
+    fontSize: FontSizes.md,
+    minHeight: 150,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: Spacing.lg,
+  },
+  contactLabel: {
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.sm,
+  },
+  contactOptions: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  contactOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.md,
+    backgroundColor: Colors.mediumDark,
+    borderRadius: BorderRadius.md,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    gap: Spacing.sm,
+  },
+  contactOptionActive: {
+    borderColor: Colors.sacred,
+    backgroundColor: Colors.sacred + '20',
+  },
+  contactOptionText: {
+    fontSize: FontSizes.md,
+    color: Colors.textMuted,
+    fontWeight: '600',
+  },
+  contactOptionTextActive: {
+    color: Colors.sacred,
+  },
+  submitButton: {
+    backgroundColor: Colors.sacred,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+  },
+  submitButtonDisabled: {
+    opacity: 0.6,
+  },
+  submitButtonText: {
+    color: Colors.dark,
+    fontSize: FontSizes.lg,
+    fontWeight: 'bold',
   },
 });
