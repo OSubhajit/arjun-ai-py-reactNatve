@@ -679,6 +679,10 @@ async def get_streak(current_user: dict = Depends(get_current_user)):
     """Get user's daily usage streak"""
     try:
         user_id = str(current_user["_id"])
+
+        @app.get("/")
+def home():
+    return {"message": "Arjun AI Backend Running 🚀"}
         
         # Get user's streak data
         user = await db.users.find_one(
