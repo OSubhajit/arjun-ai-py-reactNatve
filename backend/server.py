@@ -362,17 +362,6 @@ IMPORTANT: Only suggest ethical, smart strategies. You analyze and plan, but alw
         
         system_message = base_prompt + context
         
-        # Create chat instance
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=f"user_{user_id}_{character}_{mode}",
-            system_message=system_message
-        ).with_model("openai", "gpt-5.2")
-        
-        # Send message
-        user_message = UserMessage(text=message)
-        response_text = await chat.send_message(user_message)
-        
         return {
             "response": response_text,
             "is_premium_prompt": False,
