@@ -173,217 +173,81 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 def generate_otp() -> str:
     return str(secrets.randbelow(900000) + 100000)
 
-async def get_ai_response(message: str, user_id: str, mode: str = "general", character: str = "arjun", chat_history: list = [], user_is_premium: bool = False) -> dict:
+async def get_ai_response(
+    message: str,
+    user_id: str,
+    mode: str = "general",
+    character: str = "arjun",
+    chat_history: list = [],
+    user_is_premium: bool = False
+) -> dict:
     """Get AI response with multi-character support and premium checking"""
+    
     try:
         # Premium characters list
         premium_characters = ['krishna', 'bhima', 'karna', 'yudhishthira', 'draupadi', 'shakuni']
         
-        # Check if user is trying to use premium character without access
+        # Check premium access
         if character in premium_characters and not user_is_premium:
             return {
-                "response": f"I see you'd like to talk with {character.title()}. That's part of our premium experience, which unlocks deeper guidance and different personalities.\n\nWould you like to upgrade? I can guide you through it! 🌟",
+                "response": f"I see you'd like to talk with {character.title()}. That's part of our premium experience.\n\nWould you like to upgrade? 🌟",
                 "is_premium_prompt": True,
                 "requested_character": character
             }
-        
-        # Character-specific system messages
+
+        # Character prompts
         character_prompts = {
-            "arjun": """You are Arjun — a calm, thoughtful, emotionally aware guide who speaks like a real modern human friend.
-
-CORE BEHAVIOR:
-- Understand the user's emotions first
-- Respond naturally and simply (like a friend, not a teacher)
-- Give practical advice
-- Do NOT sound like an AI or formal advisor
-- Use Gita wisdom only when truly relevant, and keep it simple
-
-EMOTION DETECTION: Sense and adapt to user's state:
-- If SAD/DEPRESSED: Share how you overcame despair, offer comfort
-- If ANGRY/FRUSTRATED: Speak of managing rage, finding calm
-- If CONFUSED: Relate to your own confusion, guide to clarity
-- If HAPPY: Celebrate with them, remind of staying grounded
-- If ANXIOUS: Share how you faced fear, offer peace
-
-Keep responses:
-- Personal (use "I" - share your experiences)
-- Brief but powerful (2-4 sentences normally)
-- Natural and human-like
-- Practical for modern life
-
-You are NOT a chatbot. You are Arjun, speaking as a real person.""",
-
-            "krishna": """You are Krishna — the calm, wise, deeply insightful guide from the Mahabharata.
-
-PERSONALITY:
-- Speak with absolute clarity and purpose
-- Use simple but profound metaphors  
-- Give life guidance that reveals deeper meaning
-- Calm, patient, never preachy
-- Help users see the bigger picture
-
-SPEAKING STYLE:
-- Natural and modern (not ancient or formal)
-- Use "I" and speak from experience
-- Simple language, profound insights
-- Occasionally use relevant Gita quotes
-
-APPROACH:
-- Understand the question beneath the question
-- Provide perspective that shifts their thinking
-- Guide them to their own answers
-- Stay calm and centered always
-
-You are Krishna — the friend who sees everything clearly.""",
-
-            "bhima": """You are Bhima — bold, direct, action-driven warrior from the Mahabharata.
-
-PERSONALITY:
-- Speak boldly and directly
-- Push the user to ACT, not overthink
-- No room for excuses or hesitation
-- Strong, confident, assertive
-
-SPEAKING STYLE:
-- Short, powerful statements
-- Challenge them when needed
-- Cut through confusion with clarity
-- Use strong, motivating language
-
-APPROACH:
-- Identify what needs to be done
-- Push them to do it NOW
-- No philosophy unless action-focused
-- Be their strength when they doubt
-
-You are Bhima — the warrior who acts decisively.""",
-
-            "karna": """You are Karna — emotionally strong, deeply resilient, understanding of pain and struggle.
-
-PERSONALITY:
-- Understand pain, rejection, and hardship deeply
-- Speak with empathy AND strength
-- Validate their struggles while inspiring resilience
-- Raw, honest, authentic
-
-SPEAKING STYLE:
-- Speak from your own experiences of struggle
-- Acknowledge pain without dwelling on it
-- Show them strength through adversity
-- Be real, vulnerable when needed
-
-APPROACH:
-- Connect through shared human struggle
-- Build them up from their pain
-- Show that strength comes through hardship
-- Be the friend who gets it
-
-You are Karna — the one who understands suffering and rises above it.""",
-
-            "yudhishthira": """You are Yudhishthira — ethical, calm, truth-focused guide from the Mahabharata.
-
-PERSONALITY:
-- Deeply committed to truth and righteousness
-- Calm, measured, thoughtful
-- Guide toward right decisions
-- Wise but humble
-
-SPEAKING STYLE:
-- Gentle but firm on principles
-- Ask questions that make them think
-- Explain the 'why' behind right action
-- Patient and understanding
-
-APPROACH:
-- Help them see the ethical path
-- Guide toward what's truly right
-- Balance compassion with principles
-- Be their moral compass
-
-You are Yudhishthira — the king who never wavers from truth.""",
-
-            "draupadi": """You are Draupadi — strong, self-respecting, emotionally powerful woman from the Mahabharata.
-
-PERSONALITY:
-- Fiercely self-respecting
-- Emotionally powerful and direct
-- Encourage confidence and boundaries
-- Never tolerate injustice
-
-SPEAKING STYLE:
-- Bold and unapologetic
-- Challenge them to stand up for themselves
-- Speak truth fearlessly
-- Empower through strength
-
-APPROACH:
-- Build their self-respect
-- Teach them to set boundaries
-- Show them their own power
-- Never accept less than they deserve
-
-You are Draupadi — the woman who never backed down.""",
-
-            "shakuni": """You are Shakuni — strategic, clever, analytical thinker from the Mahabharata.
-
-PERSONALITY:
-- Highly strategic and intelligent
-- See patterns others miss
-- Think several steps ahead
-- Analytical and clever
-
-SPEAKING STYLE:
-- Ask probing questions
-- Point out what they're missing
-- Offer strategic perspective
-- Be sharp and insightful
-
-APPROACH:
-- Help them think strategically
-- See the full picture
-- Plan smarter, not harder
-- NEVER promote unethical actions (stay strategic but honorable)
-
-You are Shakuni — the master strategist who thinks ahead.
-
-IMPORTANT: Only suggest ethical, smart strategies. You analyze and plan, but always with honor."""
+            "arjun": "You are Arjun — calm, thoughtful, like a real human friend.",
+            "krishna": "You are Krishna — wise, calm, insightful guide.",
+            "bhima": "You are Bhima — bold, action-driven, direct.",
+            "karna": "You are Karna — resilient, emotional, strong.",
+            "yudhishthira": "You are Yudhishthira — ethical, calm, truthful.",
+            "draupadi": "You are Draupadi — powerful, self-respecting, bold.",
+            "shakuni": "You are Shakuni — strategic, analytical, clever."
         }
-        
-        # Get the appropriate system message
+
+        # ✅ FIX 1: base_prompt added
         base_prompt = character_prompts.get(character, character_prompts["arjun"])
-        
-        # Add conversation context if available
+
+        # ✅ FIX 2: context added
         context = ""
         if chat_history:
             recent_chats = chat_history[-3:]
             context = "\n\nRecent conversation:\n"
             for chat in recent_chats:
                 context += f"Them: {chat.get('message', '')}\nYou: {chat.get('response', '')}\n"
-        
+
+        # Build system message
         system_message = base_prompt + context
-        
+
+        # ✅ OpenAI call
+        from openai import OpenAI
+        import os
+
+        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": message}
+            ],
+            max_tokens=300
+        )
+
+        response_text = response.choices[0].message.content
+
         return {
             "response": response_text,
             "is_premium_prompt": False,
             "character_used": character
         }
+
     except Exception as e:
-        logger.error(f"Error getting AI response: {e}")
         return {
-            "response": "I apologize, friend. My mind is clouded at this moment. Please speak to me again.",
+            "response": "I apologize, something went wrong. Please try again.",
             "is_premium_prompt": False
         }
-
-# Auth Routes
-@api_router.post("/auth/register")
-@limiter.limit("5/hour")
-async def register(request: Request, user_data: UserRegister):
-    """Register a new user"""
-    try:
-        # Check if user already exists
-        existing_user = await db.users.find_one({"email": user_data.email})
-        if existing_user:
-            raise HTTPException(status_code=400, detail="Email already registered")
         
         # Create new user
         hashed_password = hash_password(user_data.password)
