@@ -131,14 +131,25 @@
     </div>
 
     <script>
-        // Auto-detect backend URL
+        // Auto-detect backend URL for different environments
         const getBackendUrl = () => {
+            const currentUrl = window.location.href;
             const currentHost = window.location.hostname;
-            // If accessing via preview URL, use the same domain with port 8002
+            
+            console.log('Current URL:', currentUrl);
+            
+            // VSCode Preview (uses /proxy/{port})
+            if (currentUrl.includes('/proxy/8003')) {
+                const baseUrl = currentUrl.split('/proxy/8003')[0];
+                return baseUrl + '/proxy/8002/api/admin';
+            }
+            
+            // Preview.emergentagent.com
             if (currentHost.includes('preview.emergentagent.com')) {
                 return window.location.origin.replace(':8003', ':8002') + '/api/admin';
             }
-            // Otherwise use localhost
+            
+            // Localhost
             return 'http://localhost:8002/api/admin';
         };
         
