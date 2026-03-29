@@ -36,8 +36,17 @@ export default function ChatScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [selectedMode, setSelectedMode] = useState('general');
   const flatListRef = useRef<FlatList>(null);
   const recordingRef = useRef<Audio.Recording | null>(null);
+
+  const chatModes = [
+    { id: 'general', label: 'General', icon: 'chatbubbles', color: Colors.sacred },
+    { id: 'meditation', label: 'Meditation', icon: 'fitness', color: '#4CAF50' },
+    { id: 'decision', label: 'Decision', icon: 'compass', color: '#FF9800' },
+    { id: 'heartbreak', label: 'Heartbreak', icon: 'heart-dislike', color: '#E91E63' },
+    { id: 'study', label: 'Study', icon: 'book', color: '#2196F3' },
+  ];
 
   useEffect(() => {
     // Welcome message

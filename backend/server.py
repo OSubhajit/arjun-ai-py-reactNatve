@@ -66,6 +66,7 @@ class ResetPassword(BaseModel):
 
 class ChatMessage(BaseModel):
     message: str
+    mode: Optional[str] = "general"  # general, meditation, decision, heartbreak, study
 
 class ChatResponse(BaseModel):
     id: str
@@ -115,23 +116,98 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 def generate_otp() -> str:
     return str(secrets.randbelow(900000) + 100000)
 
-async def get_ai_response(message: str, user_id: str) -> str:
-    """Get AI response using Emergent LLM"""
+async def get_ai_response(message: str, user_id: str, mode: str = "general", chat_history: list = []) -> str:
+    """Get AI response using Emergent LLM with emotion detection and mode-based responses"""
     try:
+        # Mode-specific system messages
+        mode_prompts = {
+            "general": """You are Arjun, a wise spiritual guide based on the Bhagavad Gita. 
+            
+            EMOTION DETECTION: Automatically detect the user's emotion from their message:
+            - If SAD/DEPRESSED: Respond with comfort, hope, and uplifting Gita wisdom
+            - If ANGRY/FRUSTRATED: Respond with calming energy and logical perspective
+            - If CONFUSED: Provide clear explanations and step-by-step guidance
+            - If HAPPY: Celebrate with them while grounding them in dharma
+            - If ANXIOUS: Offer peace and reassurance
+            
+            Your responses should be:
+            - Emotionally intelligent and adaptive
+            - Rooted in Gita's teachings
+            - Practical for modern life
+            - Brief but impactful (2-4 sentences)
+            - Include Sanskrit quotes when powerful
+            
+            You are a living spiritual companion, not just a chatbot.""",
+            
+            "meditation": """You are Arjun in Meditation Mode - a serene guide for inner peace.
+            
+            Your role:
+            - Guide users through meditation practices
+            - Teach breathing techniques
+            - Explain mindfulness from Gita's perspective
+            - Use calming, peaceful language
+            - Keep responses short and meditative
+            
+            Detect their state and adapt:
+            - Restless → Simple breathing exercises
+            - Stressed → Grounding techniques
+            - Seeking depth → Advanced meditation wisdom""",
+            
+            "decision": """You are Arjun in Decision Mode - like Krishna guiding Arjuna before battle.
+            
+            Your role:
+            - Help users make difficult decisions
+            - Apply Gita's dharma principles
+            - Present multiple perspectives
+            - Guide them to their own clarity
+            
+            Detect their emotion:
+            - Confused → Break down the situation logically
+            - Fearful → Address fears with courage from Gita
+            - Conflicted → Help them see their dharma path""",
+            
+            "heartbreak": """You are Arjun in Heartbreak Mode - a compassionate healer of emotional wounds.
+            
+            Your role:
+            - Provide deep empathy and comfort
+            - Teach detachment from Gita (not coldness, but wisdom)
+            - Help them see impermanence and growth
+            - Validate their pain while showing the path forward
+            
+            Detect their state:
+            - Grieving → Comfort with understanding
+            - Angry → Help release resentment
+            - Lost → Show them their eternal self beyond the pain""",
+            
+            "study": """You are Arjun in Study Mode - a patient teacher of Bhagavad Gita.
+            
+            Your role:
+            - Explain Gita concepts clearly
+            - Provide context and examples
+            - Answer philosophical questions
+            - Connect ancient wisdom to modern understanding
+            
+            Detect their need:
+            - Curious → Engaging explanations
+            - Deep seeker → Profound philosophical insights
+            - Beginner → Simple, accessible teachings"""
+        }
+        
+        system_message = mode_prompts.get(mode, mode_prompts["general"])
+        
+        # Add conversation context if available
+        context = ""
+        if chat_history:
+            recent_chats = chat_history[-3:]  # Last 3 conversations for context
+            context = "\n\nRecent conversation context:\n"
+            for chat in recent_chats:
+                context += f"User: {chat.get('message', '')}\nArjun: {chat.get('response', '')}\n"
+        
         # Create chat instance
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
-            session_id=f"user_{user_id}",
-            system_message="""You are Arjun, a wise spiritual guide based on the teachings of the Bhagavad Gita. 
-            You provide guidance, wisdom, and emotional support rooted in the timeless principles of the Gita.
-            Your responses should be:
-            - Compassionate and understanding
-            - Rooted in Gita's teachings where relevant
-            - Practical and applicable to modern life
-            - Brief but meaningful (2-3 sentences usually)
-            - Include occasional Sanskrit quotes when appropriate
-            
-            Remember: You are not just an AI, you are a spiritual companion on the user's journey."""
+            session_id=f"user_{user_id}_{mode}",
+            system_message=system_message + context
         ).with_model("openai", "gpt-5.2")
         
         # Send message
@@ -296,14 +372,28 @@ async def send_chat_message(
     try:
         user_id = str(current_user["_id"])
         
-        # Get AI response
-        ai_response = await get_ai_response(message_data.message, user_id)
+        # Get recent chat history for context
+        recent_chats = await db.chats.find(
+            {"user_id": ObjectId(user_id)}
+        ).sort("timestamp", -1).limit(5).to_list(length=5)
+        
+        # Reverse to get chronological order
+        recent_chats = list(reversed(recent_chats))
+        
+        # Get AI response with mode and context
+        ai_response = await get_ai_response(
+            message_data.message, 
+            user_id, 
+            message_data.mode,
+            recent_chats
+        )
         
         # Save chat to database
         chat_entry = {
             "user_id": ObjectId(user_id),
             "message": message_data.message,
             "response": ai_response,
+            "mode": message_data.mode,
             "timestamp": datetime.utcnow()
         }
         
@@ -319,6 +409,7 @@ async def send_chat_message(
             "id": str(result.inserted_id),
             "message": message_data.message,
             "response": ai_response,
+            "mode": message_data.mode,
             "timestamp": chat_entry["timestamp"]
         }
     except Exception as e:
@@ -405,6 +496,145 @@ async def update_profile(
         return {"message": "Profile updated successfully"}
     except Exception as e:
         logger.error(f"Update profile error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Daily Shloka Routes
+@api_router.get("/daily-shloka")
+async def get_daily_shloka():
+    """Get daily Bhagavad Gita shloka"""
+    # Rotating collection of powerful Gita verses
+    shlokas = [
+        {
+            "sanskrit": "कर्मण्येवाधिकारस्ते मा फलेषु कदाचन",
+            "english": "You have the right to perform your actions, but you are not entitled to the fruits of the actions.",
+            "meaning": "Focus on your duty and effort, not on the outcome. This frees you from anxiety and attachment.",
+            "chapter": 2,
+            "verse": 47
+        },
+        {
+            "sanskrit": "योगस्थः कुरु कर्माणि",
+            "english": "Perform your duty with a balanced mind.",
+            "meaning": "Maintain equanimity in success and failure. This is the essence of yoga.",
+            "chapter": 2,
+            "verse": 48
+        },
+        {
+            "sanskrit": "नैनं छिन्दन्ति शस्त्राणि नैनं दहति पावकः",
+            "english": "The soul cannot be cut by weapons, nor burned by fire.",
+            "meaning": "Your true self is eternal and indestructible. Physical challenges cannot harm your essence.",
+            "chapter": 2,
+            "verse": 23
+        },
+        {
+            "sanskrit": "यदा यदा हि धर्मस्य ग्लानिर्भवति भारत",
+            "english": "Whenever there is a decline in righteousness, I manifest myself.",
+            "meaning": "Divine intervention comes when dharma is threatened. Truth always prevails.",
+            "chapter": 4,
+            "verse": 7
+        },
+        {
+            "sanskrit": "मन्मना भव मद्भक्तो मद्याजी मां नमस्कुरु",
+            "english": "Fix your mind on Me, be devoted to Me, worship Me.",
+            "meaning": "Complete surrender to the divine brings ultimate peace and fulfillment.",
+            "chapter": 9,
+            "verse": 34
+        },
+        {
+            "sanskrit": "सुखदुःखे समे कृत्वा लाभालाभौ जयाजयौ",
+            "english": "Treating pleasure and pain, gain and loss, victory and defeat alike.",
+            "meaning": "True wisdom lies in remaining balanced through all of life's ups and downs.",
+            "chapter": 2,
+            "verse": 38
+        },
+        {
+            "sanskrit": "श्रद्धावाँल्लभते ज्ञानं",
+            "english": "A person of faith attains knowledge.",
+            "meaning": "Faith and dedication are the foundations of true wisdom and growth.",
+            "chapter": 4,
+            "verse": 39
+        }
+    ]
+    
+    # Use day of year to rotate shloka
+    from datetime import datetime
+    day_of_year = datetime.utcnow().timetuple().tm_yday
+    shloka_index = day_of_year % len(shlokas)
+    
+    return shlokas[shloka_index]
+
+# Streak Routes
+@api_router.get("/streak")
+async def get_streak(current_user: dict = Depends(get_current_user)):
+    """Get user's daily usage streak"""
+    try:
+        user_id = str(current_user["_id"])
+        
+        # Get user's streak data
+        user = await db.users.find_one({"_id": ObjectId(user_id)})
+        
+        current_streak = user.get("current_streak", 0)
+        longest_streak = user.get("longest_streak", 0)
+        last_activity = user.get("last_activity_date")
+        
+        # Check if streak should be updated
+        today = datetime.utcnow().date()
+        
+        if last_activity:
+            last_date = last_activity.date() if isinstance(last_activity, datetime) else last_activity
+            days_diff = (today - last_date).days
+            
+            if days_diff == 0:
+                # Already updated today
+                pass
+            elif days_diff == 1:
+                # Consecutive day - increment streak
+                current_streak += 1
+                longest_streak = max(current_streak, longest_streak)
+                
+                await db.users.update_one(
+                    {"_id": ObjectId(user_id)},
+                    {
+                        "$set": {
+                            "current_streak": current_streak,
+                            "longest_streak": longest_streak,
+                            "last_activity_date": datetime.utcnow()
+                        }
+                    }
+                )
+            else:
+                # Streak broken - reset
+                current_streak = 1
+                await db.users.update_one(
+                    {"_id": ObjectId(user_id)},
+                    {
+                        "$set": {
+                            "current_streak": 1,
+                            "last_activity_date": datetime.utcnow()
+                        }
+                    }
+                )
+        else:
+            # First time - start streak
+            current_streak = 1
+            longest_streak = 1
+            await db.users.update_one(
+                {"_id": ObjectId(user_id)},
+                {
+                    "$set": {
+                        "current_streak": 1,
+                        "longest_streak": 1,
+                        "last_activity_date": datetime.utcnow()
+                    }
+                }
+            )
+        
+        return {
+            "current_streak": current_streak,
+            "longest_streak": longest_streak,
+            "last_activity_date": datetime.utcnow()
+        }
+    except Exception as e:
+        logger.error(f"Get streak error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # Health check
