@@ -13,7 +13,6 @@ from passlib.context import CryptContext
 import jwt
 from bson import ObjectId
 import secrets
-from emergentintegrations.llm.chat import LlmChat, UserMessage
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -36,8 +35,6 @@ JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key-change-in-production'
 JWT_ALGORITHM = os.environ.get('JWT_ALGORITHM', 'HS256')
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get('ACCESS_TOKEN_EXPIRE_MINUTES', 10080))
 
-# LLM Settings
-EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY')
 
 # Create the main app
 app = FastAPI(title="Arjun AI API")
