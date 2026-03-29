@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitaPath Premium - Unlock Divine Guidance</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0806 0%, #1a1410 100%);
+            color: #f5f5f5;
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Animated Background */
+        .background-animation {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            z-index: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .lotus-particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: radial-gradient(circle, #c8a96e, transparent);
+            border-radius: 50%;
+            animation: float 15s infinite ease-in-out;
+            opacity: 0.3;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) translateX(0); }
+            25% { transform: translateY(-100vh) translateX(50px); }
+            50% { transform: translateY(-200vh) translateX(-50px); }
+            75% { transform: translateY(-300vh) translateX(30px); }
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+            animation: fadeInDown 1s ease-out;
+        }
+
+        .logo {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
+        .title {
+            font-size: 48px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #c8a96e, #f5e6d3);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 15px;
+            text-shadow: 0 0 30px rgba(200, 169, 110, 0.3);
+        }
+
+        .subtitle {
+            font-size: 20px;
+            color: #b8a080;
+            font-weight: 300;
+        }
+
+        /* Plans Grid */
+        .plans-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+            margin-bottom: 50px;
+        }
+
+        .plan-card {
+            background: rgba(26, 20, 16, 0.6);
+            border: 2px solid rgba(200, 169, 110, 0.2);
+            border-radius: 20px;
+            padding: 35px 25px;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: fadeInUp 0.8s ease-out forwards;
+            backdrop-filter: blur(10px);
+        }
+
+        .plan-card:nth-child(1) { animation-delay: 0.1s; }
+        .plan-card:nth-child(2) { animation-delay: 0.2s; }
+        .plan-card:nth-child(3) { animation-delay: 0.3s; }
+        .plan-card:nth-child(4) { animation-delay: 0.4s; }
+
+        .plan-card::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, #c8a96e, #f5e6d3, #c8a96e);
+            border-radius: 20px;
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+
+        .plan-card:hover {
+            transform: translateY(-10px) scale(1.02);
+            border-color: rgba(200, 169, 110, 0.6);
+            box-shadow: 0 20px 60px rgba(200, 169, 110, 0.3);
+        }
+
+        .plan-card:hover::before {
+            opacity: 1;
+        }
+
+        .plan-card.popular {
+            border-color: #c8a96e;
+            box-shadow: 0 10px 40px rgba(200, 169, 110, 0.2);
+        }
+
+        .popular-badge {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: linear-gradient(135deg, #c8a96e, #f5e6d3);
+            color: #0a0806;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .plan-name {
+            font-size: 28px;
+            font-weight: 700;
+            color: #c8a96e;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .plan-price {
+            font-size: 42px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 5px;
+        }
+
+        .plan-price span {
+            font-size: 18px;
+            color: #b8a080;
+        }
+
+        .plan-description {
+            color: #b8a080;
+            font-size: 14px;
+            margin-bottom: 25px;
+            min-height: 40px;
+        }
+
+        .plan-features {
+            list-style: none;
+            margin-bottom: 30px;
+        }
+
+        .plan-features li {
+            padding: 10px 0;
+            color: #d4c4a8;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .plan-features li:before {
+            content: '✓';
+            color: #c8a96e;
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .plan-button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #c8a96e, #d4b87e);
+            color: #0a0806;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 4px 15px rgba(200, 169, 110, 0.3);
+        }
+
+        .plan-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(200, 169, 110, 0.5);
+            background: linear-gradient(135deg, #d4b87e, #c8a96e);
+        }
+
+        /* Payment Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #1a1410 0%, #0a0806 100%);
+            border: 2px solid #c8a96e;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+            animation: modalSlideIn 0.4s ease-out;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            color: #c8a96e;
+            font-size: 30px;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+
+        .modal-close:hover {
+            transform: rotate(90deg);
+        }
+
+        .modal-title {
+            font-size: 28px;
+            color: #c8a96e;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .modal-amount {
+            font-size: 36px;
+            font-weight: 700;
+            color: #fff;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .upi-section {
+            background: rgba(200, 169, 110, 0.1);
+            border: 1px solid #c8a96e;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+
+        .upi-label {
+            color: #b8a080;
+            font-size: 14px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .upi-id {
+            color: #c8a96e;
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            word-break: break-all;
+        }
+
+        .copy-button {
+            background: #c8a96e;
+            color: #0a0806;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .copy-button:hover {
+            background: #d4b87e;
+            transform: scale(1.05);
+        }
+
+        .qr-placeholder {
+            width: 200px;
+            height: 200px;
+            background: #fff;
+            border-radius: 12px;
+            margin: 20px auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #0a0806;
+            font-weight: 700;
+        }
+
+        .auto-renew {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(200, 169, 110, 0.05);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .toggle {
+            position: relative;
+            width: 50px;
+            height: 26px;
+            background: #2a2420;
+            border-radius: 13px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle.active {
+            background: #c8a96e;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 20px;
+            height: 20px;
+            background: #fff;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+
+        .toggle.active .toggle-slider {
+            transform: translateX(24px);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            color: #b8a080;
+            margin-bottom: 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px;
+            background: rgba(200, 169, 110, 0.1);
+            border: 1px solid rgba(200, 169, 110, 0.3);
+            border-radius: 8px;
+            color: #fff;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #c8a96e;
+            box-shadow: 0 0 15px rgba(200, 169, 110, 0.2);
+        }
+
+        .verify-button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #c8a96e, #d4b87e);
+            color: #0a0806;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .verify-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(200, 169, 110, 0.5);
+        }
+
+        .note {
+            background: rgba(200, 169, 110, 0.1);
+            border-left: 3px solid #c8a96e;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 8px;
+            color: #b8a080;
+            font-size: 14px;
+        }
+
+        /* Animations */
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .title {
+                font-size: 36px;
+            }
+            .subtitle {
+                font-size: 16px;
+            }
+            .plans-grid {
+                grid-template-columns: 1fr;
+            }
+            .modal-content {
+                padding: 30px 20px;
+            }
+        }
+
+        /* Success Animation */
+        .success-checkmark {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+        }
+
+        .success-checkmark .check-icon {
+            width: 80px;
+            height: 80px;
+            position: relative;
+            border-radius: 50%;
+            box-sizing: content-box;
+            border: 4px solid #c8a96e;
+        }
+
+        .success-checkmark .check-icon::before {
+            top: 3px;
+            left: -2px;
+            width: 30px;
+            transform-origin: 100% 50%;
+            border-radius: 100px 0 0 100px;
+        }
+
+        .success-checkmark .check-icon::after {
+            top: 0;
+            left: 30px;
+            width: 60px;
+            transform-origin: 0 50%;
+            border-radius: 0 100px 100px 0;
+            animation: rotate-circle 4.25s ease-in;
+        }
+
+        .success-checkmark .check-icon .icon-line {
+            height: 5px;
+            background-color: #c8a96e;
+            display: block;
+            border-radius: 2px;
+            position: absolute;
+            z-index: 10;
+        }
+
+        .success-checkmark .check-icon .icon-line.line-tip {
+            top: 46px;
+            left: 14px;
+            width: 25px;
+            transform: rotate(45deg);
+            animation: icon-line-tip 0.75s;
+        }
+
+        .success-checkmark .check-icon .icon-line.line-long {
+            top: 38px;
+            right: 8px;
+            width: 47px;
+            transform: rotate(-45deg);
+            animation: icon-line-long 0.75s;
+        }
+
+        @keyframes icon-line-tip {
+            0% { width: 0; left: 1px; top: 19px; }
+            54% { width: 0; left: 1px; top: 19px; }
+            70% { width: 50px; left: -8px; top: 37px; }
+            84% { width: 17px; left: 21px; top: 48px; }
+            100% { width: 25px; left: 14px; top: 45px; }
+        }
+
+        @keyframes icon-line-long {
+            0% { width: 0; right: 46px; top: 54px; }
+            65% { width: 0; right: 46px; top: 54px; }
+            84% { width: 55px; right: 0px; top: 35px; }
+            100% { width: 47px; right: 8px; top: 38px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Animated Background -->
+    <div class="background-animation" id="particles"></div>
+
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">🪷</div>
+            <h1 class="title">Unlock Divine Guidance</h1>
+            <p class="subtitle">Upgrade your experience and access powerful AI personalities</p>
+        </div>
+
+        <!-- Plans Grid -->
+        <div class="plans-grid">
+            <!-- BASIC Plan -->
+            <div class="plan-card" data-plan="basic" data-price="500">
+                <h3 class="plan-name">Basic</h3>
+                <div class="plan-price">₹500<span>/month</span></div>
+                <p class="plan-description">Start your spiritual journey</p>
+                <ul class="plan-features">
+                    <li>Access to Arjun (Enhanced)</li>
+                    <li>Limited premium responses</li>
+                    <li>Basic chat history</li>
+                    <li>Email support</li>
+                </ul>
+                <button class="plan-button" onclick="openPaymentModal('Basic', 500)">Choose Basic</button>
+            </div>
+
+            <!-- WARRIOR Plan -->
+            <div class="plan-card" data-plan="warrior" data-price="1000">
+                <h3 class="plan-name">Warrior</h3>
+                <div class="plan-price">₹1000<span>/month</span></div>
+                <p class="plan-description">For the action-oriented seeker</p>
+                <ul class="plan-features">
+                    <li>Access to Arjun + Bhima</li>
+                    <li>Faster responses</li>
+                    <li>Unlimited chat history</li>
+                    <li>Priority support</li>
+                </ul>
+                <button class="plan-button" onclick="openPaymentModal('Warrior', 1000)">Choose Warrior</button>
+            </div>
+
+            <!-- STRATEGIST Plan -->
+            <div class="plan-card" data-plan="strategist" data-price="2500">
+                <h3 class="plan-name">Strategist</h3>
+                <div class="plan-price">₹2500<span>/month</span></div>
+                <p class="plan-description">Deep guidance for complex decisions</p>
+                <ul class="plan-features">
+                    <li>Krishna + Karna + Yudhishthira</li>
+                    <li>Deep guidance mode</li>
+                    <li>Advanced analytics</li>
+                    <li>VIP support</li>
+                </ul>
+                <button class="plan-button" onclick="openPaymentModal('Strategist', 2500)">Choose Strategist</button>
+            </div>
+
+            <!-- DIVINE Plan -->
+            <div class="plan-card popular" data-plan="divine" data-price="5000">
+                <div class="popular-badge">Most Popular</div>
+                <h3 class="plan-name">Divine</h3>
+                <div class="plan-price">₹5000<span>/month</span></div>
+                <p class="plan-description">Complete spiritual mastery</p>
+                <ul class="plan-features">
+                    <li>All 7 characters unlocked</li>
+                    <li>Priority AI responses</li>
+                    <li>Future features access</li>
+                    <li>Dedicated support</li>
+                    <li>Exclusive insights</li>
+                </ul>
+                <button class="plan-button" onclick="openPaymentModal('Divine', 5000)">Choose Divine</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Modal -->
+    <div class="modal" id="paymentModal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closePaymentModal()">&times;</button>
+            
+            <h2 class="modal-title" id="modalPlanName">Divine Plan</h2>
+            <div class="modal-amount" id="modalAmount">₹5000/month</div>
+
+            <!-- UPI Section -->
+            <div class="upi-section">
+                <div class="upi-label">Pay via UPI</div>
+                <div class="upi-id">cyber.s.sarkar0708@ybl</div>
+                <button class="copy-button" onclick="copyUPI()">Copy UPI ID</button>
+            </div>
+
+            <!-- QR Code Placeholder -->
+            <div class="qr-placeholder">
+                QR Code
+                <br>
+                <small>Scan to Pay</small>
+            </div>
+
+            <!-- Auto-Renew Toggle -->
+            <div class="auto-renew">
+                <span style="color: #b8a080;">Enable Auto-Renew</span>
+                <div class="toggle" id="autoRenewToggle" onclick="toggleAutoRenew()">
+                    <div class="toggle-slider"></div>
+                </div>
+            </div>
+            <p style="color: #8a7a6a; font-size: 12px; margin-top: -10px; margin-bottom: 20px;">
+                Your subscription will renew automatically every month via UPI Autopay
+            </p>
+
+            <!-- Payment Confirmation Form -->
+            <form id="paymentVerificationForm" onsubmit="verifyPayment(event)">
+                <div class="form-group">
+                    <label class="form-label">Transaction ID</label>
+                    <input type="text" class="form-input" id="transactionId" required placeholder="Enter UPI transaction ID">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Screenshot (Optional)</label>
+                    <input type="file" class="form-input" id="screenshot" accept="image/*">
+                </div>
+
+                <button type="submit" class="verify-button">Verify Payment</button>
+            </form>
+
+            <div class="note">
+                <strong>Note:</strong> Your payment is being verified. Access will be unlocked shortly after verification.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Create floating particles
+        function createParticles() {
+            const container = document.getElementById('particles');
+            const particleCount = 30;
+
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'lotus-particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 15 + 's';
+                particle.style.animationDuration = (15 + Math.random() * 10) + 's';
+                container.appendChild(particle);
+            }
+        }
+
+        createParticles();
+
+        let selectedPlan = '';
+        let selectedAmount = 0;
+        let autoRenew = false;
+
+        function openPaymentModal(planName, amount) {
+            selectedPlan = planName;
+            selectedAmount = amount;
+            
+            document.getElementById('modalPlanName').textContent = planName + ' Plan';
+            document.getElementById('modalAmount').textContent = '₹' + amount + '/month';
+            document.getElementById('paymentModal').classList.add('active');
+        }
+
+        function closePaymentModal() {
+            document.getElementById('paymentModal').classList.remove('active');
+            document.getElementById('paymentVerificationForm').reset();
+            document.getElementById('autoRenewToggle').classList.remove('active');
+            autoRenew = false;
+        }
+
+        function toggleAutoRenew() {
+            const toggle = document.getElementById('autoRenewToggle');
+            toggle.classList.toggle('active');
+            autoRenew = toggle.classList.contains('active');
+        }
+
+        function copyUPI() {
+            const upiId = 'cyber.s.sarkar0708@ybl';
+            navigator.clipboard.writeText(upiId).then(() => {
+                const button = event.target;
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                setTimeout(() => {
+                    button.textContent = originalText;
+                }, 2000);
+            });
+        }
+
+        async function verifyPayment(event) {
+            event.preventDefault();
+            
+            const transactionId = document.getElementById('transactionId').value;
+            const screenshot = document.getElementById('screenshot').files[0];
+            
+            // Show loading state
+            const button = event.target.querySelector('.verify-button');
+            const originalText = button.textContent;
+            button.textContent = 'Verifying...';
+            button.disabled = true;
+
+            // Prepare form data
+            const formData = new FormData();
+            formData.append('plan', selectedPlan);
+            formData.append('amount', selectedAmount);
+            formData.append('transaction_id', transactionId);
+            formData.append('auto_renew', autoRenew);
+            if (screenshot) {
+                formData.append('screenshot', screenshot);
+            }
+
+            try {
+                // Send to backend for verification
+                const response = await fetch('/api/premium/verify-payment', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + localStorage.getItem('auth_token')
+                    },
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Show success message
+                    showSuccessMessage();
+                } else {
+                    alert('Error: ' + (data.detail || 'Payment verification failed'));
+                    button.textContent = originalText;
+                    button.disabled = false;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to submit payment details. Please try again.');
+                button.textContent = originalText;
+                button.disabled = false;
+            }
+        }
+
+        function showSuccessMessage() {
+            const modalContent = document.querySelector('.modal-content');
+            modalContent.innerHTML = `
+                <div class="success-checkmark">
+                    <div class="check-icon">
+                        <span class="icon-line line-tip"></span>
+                        <span class="icon-line line-long"></span>
+                    </div>
+                </div>
+                <h2 class="modal-title" style="color: #c8a96e;">Payment Submitted!</h2>
+                <p style="text-align: center; color: #b8a080; margin: 20px 0;">
+                    Thank you for your payment. We're verifying your transaction.
+                    <br><br>
+                    You'll receive access within 24 hours.
+                </p>
+                <button class="verify-button" onclick="closePaymentModal()">Close</button>
+            `;
+        }
+
+        // Close modal on outside click
+        document.getElementById('paymentModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closePaymentModal();
+            }
+        });
+    </script>
+</body>
+</html>
