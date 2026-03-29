@@ -135,6 +135,19 @@ export default function SettingsScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {/* App Information */}
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Subscription</Text>
+          <View style={styles.sectionContent}>
+            <SettingItem
+              icon="diamond-outline"
+              title="Upgrade to Premium"
+              subtitle="Unlock all 7 characters"
+              onPress={() => router.push('/premium')}
+            />
+          </View>
+        </View>
+
+        {/* App Information */}
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>App Information</Text>
           <View style={styles.sectionContent}>
             <SettingItem
