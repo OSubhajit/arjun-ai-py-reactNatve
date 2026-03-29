@@ -105,19 +105,18 @@ export default function PremiumScreen() {
 
     setIsSubmitting(true);
     try {
-      const formData = new FormData();
-      formData.append('plan', selectedPlan.name);
-      formData.append('amount', selectedPlan.price);
-      formData.append('transaction_id', transactionId);
-      formData.append('auto_renew', autoRenew);
-
       const response = await axios.post(
         `${BACKEND_URL}/api/premium/verify-payment`,
-        formData,
+        {
+          plan: selectedPlan.name,
+          amount: selectedPlan.price,
+          transaction_id: transactionId,
+          auto_renew: autoRenew,
+        },
         {
           headers: {
             Authorization: `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data',
+            'Content-Type': 'application/json',
           },
         }
       );

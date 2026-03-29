@@ -11,6 +11,7 @@ export default function RootLayout() {
         <Stack.Screen name="(auth)/register" />
         <Stack.Screen name="(auth)/forgot-password" />
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="premium" options={{ presentation: 'modal' }} />
       </Stack>
     </AuthProvider>
   );

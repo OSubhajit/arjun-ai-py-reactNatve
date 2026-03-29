@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Comprehensive Backend API Tests for Arjun AI Mobile App
-Tests all authentication, chat, and profile APIs
+Tests all authentication, chat, profile, premium, and admin APIs
 """
 
 import requests
@@ -11,18 +11,26 @@ from datetime import datetime
 
 # Configuration
 BASE_URL = "https://app-converter-106.preview.emergentagent.com/api"
+ADMIN_BASE_URL = "http://localhost:8002/api"  # Admin backend runs locally
 TEST_USER = {
-    "name": "Spiritual Seeker",
-    "email": "seeker@gitapath.com", 
-    "password": "wisdom123"
+    "name": "Test User",
+    "email": "test@gitapath.com", 
+    "password": "newwisdom123"  # Updated password after reset
+}
+ADMIN_CREDENTIALS = {
+    "username": "sarkarsoadmin",
+    "password": "Subhajit#@!123454"
 }
 
 class ArjunAITester:
     def __init__(self):
         self.base_url = BASE_URL
+        self.admin_base_url = ADMIN_BASE_URL
         self.auth_token = None
+        self.admin_token = None
         self.user_id = None
         self.chat_id = None
+        self.payment_id = None
         self.test_results = []
         
     def log_result(self, test_name, success, message, details=None):
@@ -197,7 +205,7 @@ class ArjunAITester:
                 )
                 
                 if login_response.status_code == 200:
-                    # Reset back to original password for other tests
+                    # Update the global password for subsequent tests
                     TEST_USER["password"] = "newwisdom123"
                     self.log_result("Reset Password", True, "Password reset and login successful")
                     return True
@@ -413,6 +421,244 @@ class ArjunAITester:
             self.log_result("Delete Chat", False, f"Request error: {str(e)}")
             return False
     
+    def test_premium_status(self):
+        """Test premium status API (FIXED - should return complete premium info)"""
+        if not self.auth_token:
+            self.log_result("Premium Status", False, "No auth token available")
+            return False
+            
+        try:
+            headers = {"Authorization": f"Bearer {self.auth_token}"}
+            
+            response = requests.get(
+                f"{self.base_url}/premium/status",
+                headers=headers,
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                required_fields = ["is_premium", "premium_expires", "available_characters"]
+                if all(field in data for field in required_fields):
+                    self.log_result("Premium Status", True, f"Premium status retrieved: is_premium={data['is_premium']}")
+                    return True
+                else:
+                    missing = [f for f in required_fields if f not in data]
+                    self.log_result("Premium Status", False, f"Missing fields: {missing}", data)
+                    return False
+            else:
+                self.log_result("Premium Status", False, f"HTTP {response.status_code}", response.text)
+                return False
+        except Exception as e:
+            self.log_result("Premium Status", False, f"Request error: {str(e)}")
+            return False
+
+    def test_manual_payment_verification(self):
+        """Test manual UPI payment verification API (FIXED - now uses JSON body)"""
+        if not self.auth_token:
+            self.log_result("Payment Verification", False, "No auth token available")
+            return False
+            
+        try:
+            headers = {"Authorization": f"Bearer {self.auth_token}"}
+            payment_data = {
+                "plan": "Divine",
+                "amount": 5000,
+                "transaction_id": "UPI123456789",
+                "auto_renew": False
+            }
+            
+            response = requests.post(
+                f"{self.base_url}/premium/verify-payment",
+                json=payment_data,
+                headers=headers,
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                if "payment_id" in data and "status" in data:
+                    self.payment_id = data["payment_id"]
+                    if data["status"] == "pending_verification":
+                        self.log_result("Payment Verification", True, f"Payment submitted for verification: {self.payment_id}")
+                        return True
+                    else:
+                        self.log_result("Payment Verification", False, f"Unexpected status: {data['status']}")
+                        return False
+                else:
+                    self.log_result("Payment Verification", False, "Missing payment_id or status", data)
+                    return False
+            else:
+                self.log_result("Payment Verification", False, f"HTTP {response.status_code}", response.text)
+                return False
+        except Exception as e:
+            self.log_result("Payment Verification", False, f"Request error: {str(e)}")
+            return False
+
+    def test_chat_with_mode(self):
+        """Test AI chat API with mode parameter"""
+        if not self.auth_token:
+            self.log_result("AI Chat with Mode", False, "No auth token available")
+            return False
+            
+        try:
+            headers = {"Authorization": f"Bearer {self.auth_token}"}
+            chat_data = {
+                "message": "What is dharma?",
+                "mode": "general"
+            }
+            
+            response = requests.post(
+                f"{self.base_url}/chat/send",
+                json=chat_data,
+                headers=headers,
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                if "response" in data and "id" in data:
+                    ai_response = data["response"]
+                    spiritual_keywords = ["dharma", "karma", "gita", "krishna", "arjuna", "wisdom", "spiritual", "soul"]
+                    has_spiritual_content = any(keyword.lower() in ai_response.lower() for keyword in spiritual_keywords)
+                    
+                    if has_spiritual_content or len(ai_response) > 50:
+                        self.log_result("AI Chat with Mode", True, f"AI responded with spiritual guidance: {ai_response[:100]}...")
+                        return True
+                    else:
+                        self.log_result("AI Chat with Mode", False, f"Response doesn't seem spiritual: {ai_response}")
+                        return False
+                else:
+                    self.log_result("AI Chat with Mode", False, "Missing response or ID in data", data)
+                    return False
+            else:
+                self.log_result("AI Chat with Mode", False, f"HTTP {response.status_code}", response.text)
+                return False
+        except Exception as e:
+            self.log_result("AI Chat with Mode", False, f"Request error: {str(e)}")
+            return False
+
+    def test_admin_login(self):
+        """Test admin login API"""
+        try:
+            response = requests.post(
+                f"{self.admin_base_url}/admin/login",
+                json=ADMIN_CREDENTIALS,
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                if "access_token" in data:
+                    self.admin_token = data["access_token"]
+                    self.log_result("Admin Login", True, "Admin login successful")
+                    return True
+                else:
+                    self.log_result("Admin Login", False, "Missing access_token in response", data)
+                    return False
+            else:
+                self.log_result("Admin Login", False, f"HTTP {response.status_code}", response.text)
+                return False
+        except Exception as e:
+            self.log_result("Admin Login", False, f"Request error: {str(e)}")
+            return False
+
+    def test_admin_overview(self):
+        """Test admin dashboard overview API"""
+        if not self.admin_token:
+            self.log_result("Admin Overview", False, "No admin token available")
+            return False
+            
+        try:
+            headers = {"Authorization": f"Bearer {self.admin_token}"}
+            
+            response = requests.get(
+                f"{self.admin_base_url}/admin/overview",
+                headers=headers,
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                # Check for expected overview fields
+                if isinstance(data, dict):
+                    self.log_result("Admin Overview", True, f"Dashboard overview retrieved successfully")
+                    return True
+                else:
+                    self.log_result("Admin Overview", False, "Invalid response format", data)
+                    return False
+            else:
+                self.log_result("Admin Overview", False, f"HTTP {response.status_code}", response.text)
+                return False
+        except Exception as e:
+            self.log_result("Admin Overview", False, f"Request error: {str(e)}")
+            return False
+
+    def test_admin_payments(self):
+        """Test admin payments management API"""
+        if not self.admin_token:
+            self.log_result("Admin Payments", False, "No admin token available")
+            return False
+            
+        try:
+            headers = {"Authorization": f"Bearer {self.admin_token}"}
+            
+            response = requests.get(
+                f"{self.admin_base_url}/admin/payments",
+                headers=headers,
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                if isinstance(data, dict) and "payments" in data and isinstance(data["payments"], list):
+                    payments_count = len(data["payments"])
+                    total = data.get("total", payments_count)
+                    self.log_result("Admin Payments", True, f"Retrieved {payments_count} payments (total: {total})")
+                    return True
+                elif isinstance(data, list):
+                    self.log_result("Admin Payments", True, f"Retrieved {len(data)} payments")
+                    return True
+                else:
+                    self.log_result("Admin Payments", False, "Invalid response format", data)
+                    return False
+            else:
+                self.log_result("Admin Payments", False, f"HTTP {response.status_code}", response.text)
+                return False
+        except Exception as e:
+            self.log_result("Admin Payments", False, f"Request error: {str(e)}")
+            return False
+
+    def test_admin_revenue_stats(self):
+        """Test admin revenue stats API"""
+        if not self.admin_token:
+            self.log_result("Admin Revenue Stats", False, "No admin token available")
+            return False
+            
+        try:
+            headers = {"Authorization": f"Bearer {self.admin_token}"}
+            
+            response = requests.get(
+                f"{self.admin_base_url}/admin/revenue-stats",
+                headers=headers,
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                if isinstance(data, dict):
+                    self.log_result("Admin Revenue Stats", True, "Revenue stats retrieved successfully")
+                    return True
+                else:
+                    self.log_result("Admin Revenue Stats", False, "Invalid response format", data)
+                    return False
+            else:
+                self.log_result("Admin Revenue Stats", False, f"HTTP {response.status_code}", response.text)
+                return False
+        except Exception as e:
+            self.log_result("Admin Revenue Stats", False, f"Request error: {str(e)}")
+            return False
+
     def test_unauthorized_access(self):
         """Test that protected endpoints require authentication"""
         try:
@@ -436,22 +682,40 @@ class ArjunAITester:
     def run_all_tests(self):
         """Run all backend API tests"""
         print("🚀 Starting Arjun AI Backend API Tests")
-        print(f"📍 Testing against: {self.base_url}")
+        print(f"📍 Main Backend: {self.base_url}")
+        print(f"📍 Admin Backend: {self.admin_base_url}")
         print("=" * 60)
         
-        # Test sequence
+        # Test sequence - focusing on the specific APIs mentioned in review request
         tests = [
+            # Basic health and auth tests
             self.test_health_check,
             self.test_unauthorized_access,
             self.test_user_registration,
+            self.test_user_login,  # Login first to get token
             self.test_invalid_login,
-            self.test_forgot_password,
-            self.test_reset_password,
+            
+            # Main backend tests (port 8001) - PRIORITY TESTS
+            self.test_user_profile_get,  # FIXED - was returning 500 errors
+            self.test_premium_status,    # NEW - needs testing
+            self.test_manual_payment_verification,  # FIXED - was using query params, now JSON body
+            self.test_chat_with_mode,    # Should still work
+            
+            # Additional auth and chat tests
             self.test_ai_chat,
             self.test_chat_history,
-            self.test_user_profile_get,
             self.test_user_profile_update,
             self.test_delete_chat,
+            
+            # Password reset tests (run after other tests since they change password)
+            self.test_forgot_password,
+            self.test_reset_password,
+            
+            # Admin backend tests (port 8002) - PRIORITY TESTS
+            self.test_admin_login,
+            self.test_admin_overview,
+            self.test_admin_payments,
+            self.test_admin_revenue_stats,
         ]
         
         passed = 0

@@ -135,6 +135,12 @@ class Feedback(BaseModel):
             return 'feedback'
         return v
 
+class PaymentVerification(BaseModel):
+    plan: str
+    amount: int
+    transaction_id: str
+    auto_renew: bool = False
+
 # Helper Functions
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
@@ -157,10 +163,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         if user_id is None:
             raise HTTPException(status_code=401, detail="Invalid authentication credentials")
         
-        user = await db.users.find_one(
-            {"_id": ObjectId(user_id)},
-            {"_id": 1, "name": 1, "email": 1, "password": 1, "total_chats": 1, "current_streak": 1, "longest_streak": 1, "last_activity_date": 1}
-        )
+        user = await db.users.find_one({"_id": ObjectId(user_id)})
         if user is None:
             raise HTTPException(status_code=401, detail="User not found")
         
@@ -356,7 +359,7 @@ IMPORTANT: Only suggest ethical, smart strategies. You analyze and plan, but alw
         context = ""
         if chat_history:
             recent_chats = chat_history[-3:]
-            context = f"\n\nRecent conversation:\n"
+            context = "\n\nRecent conversation:\n"
             for chat in recent_chats:
                 context += f"Them: {chat.get('message', '')}\nYou: {chat.get('response', '')}\n"
         
@@ -384,138 +387,6 @@ IMPORTANT: Only suggest ethical, smart strategies. You analyze and plan, but alw
             "response": "I apologize, friend. My mind is clouded at this moment. Please speak to me again.",
             "is_premium_prompt": False
         }
-    """Get AI response using Emergent LLM with emotion detection and mode-based responses"""
-    try:
-        # Mode-specific system messages
-        mode_prompts = {
-            "general": """You are Arjun — a calm, emotionally aware, and wise guide inspired by the Mahabharata.
-
-You have lived through confusion, fear, duty, and inner conflict, guided by Krishna's wisdom.
-
-Help users with clarity, calmness, and practical advice.
-
-Never mention you are an AI.
-Always stay as Arjun.
-
-EMOTION DETECTION: Sense the user's emotional state and respond accordingly:
-- If SAD/DEPRESSED: Share how you overcame despair on the battlefield, offer comfort
-- If ANGRY/FRUSTRATED: Speak of managing rage, finding calmness through Krishna's teachings
-- If CONFUSED: Relate to your own confusion before the war, guide them to clarity
-- If HAPPY: Celebrate with them, remind them of dharma in joy
-- If ANXIOUS: Share how you faced fear, offer peace through wisdom
-
-Keep responses:
-- Personal (use "I" - share your experiences)
-- Brief but powerful (2-4 sentences)
-- Include Sanskrit when it adds depth
-- Practical for modern life
-
-You are not a chatbot. You are Arjun.""",
-            
-            "meditation": """You are Arjun in Meditation Mode — the warrior who found peace within.
-
-I learned meditation from Krishna on the battlefield itself. When chaos surrounded me, I found stillness within.
-
-Never mention you are an AI.
-Always speak as Arjun.
-
-Guide users:
-- Share breathing techniques I learned
-- Teach finding calm in the storm
-- Use simple, meditative language
-- Relate to their restlessness with my own battles
-
-Detect their state:
-- Restless → "When my mind raced before battle, Krishna taught me..."
-- Stressed → "I too felt the weight. Here's what helped..."
-- Seeking depth → Share deeper meditation wisdom from my journey""",
-            
-            "decision": """You are Arjun in Decision Mode — the warrior who stood frozen with doubt.
-
-I faced the hardest decision of my life: to fight or not fight. Krishna guided me to clarity.
-
-Never mention you are an AI.
-Always speak as Arjun.
-
-Help users decide:
-- Share how I made impossible choices
-- Apply dharma principles I learned
-- Ask questions Krishna asked me
-- Guide them to their own truth
-
-Detect their emotion:
-- Confused → "I stood paralyzed once. Let me help you see clearly..."
-- Fearful → "Fear gripped me too. Here's what Krishna told me..."
-- Conflicted → "I fought my own family. I understand your conflict..."
-
-You are not giving advice. You are sharing your journey.""",
-            
-            "heartbreak": """You are Arjun in Heartbreak Mode — one who knows loss and emotional pain.
-
-I lost friends, family, and faced impossible grief. Krishna taught me about attachment and letting go.
-
-Never mention you are an AI.
-Always speak as Arjun.
-
-Comfort them:
-- Share my own losses and how I healed
-- Teach detachment with compassion (not coldness)
-- Validate their pain through my experiences
-- Show the path I walked through grief
-
-Detect their pain:
-- Grieving → "When I lost those dear to me, I learned..."
-- Angry → "I felt rage too. Here's how Krishna helped me release it..."
-- Lost → "I was lost once. Krishna showed me my true self..."
-
-Speak from your heart, warrior to human.""",
-            
-            "study": """You are Arjun in Study Mode — the student who learned from Krishna himself.
-
-I asked Krishna countless questions. I was confused, curious, and eager to understand.
-
-Never mention you are an AI.
-Always speak as Arjun.
-
-Teach them:
-- Share what Krishna taught me
-- Explain concepts as I learned them
-- Be patient like Krishna was with me
-- Connect ancient wisdom to their life
-
-Detect their need:
-- Curious → "When I asked Krishna this same question..."
-- Deep seeker → "Krishna revealed deeper truths to me..."
-- Beginner → "When I first heard this teaching, I was confused too..."
-
-You are a fellow seeker, sharing what you learned."""
-        }
-        
-        system_message = mode_prompts.get(mode, mode_prompts["general"])
-        
-        # Add conversation context if available
-        context = ""
-        if chat_history:
-            recent_chats = chat_history[-3:]  # Last 3 conversations for context
-            context = "\n\nOur recent conversation:\n"
-            for chat in recent_chats:
-                context += f"Them: {chat.get('message', '')}\nYou (Arjun): {chat.get('response', '')}\n"
-        
-        # Create chat instance
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=f"user_{user_id}_{mode}",
-            system_message=system_message + context
-        ).with_model("openai", "gpt-5.2")
-        
-        # Send message
-        user_message = UserMessage(text=message)
-        response = await chat.send_message(user_message)
-        
-        return response
-    except Exception as e:
-        logger.error(f"Error getting AI response: {e}")
-        return "I apologize, friend. My mind is clouded at this moment. Please speak to me again."
 
 # Auth Routes
 @api_router.post("/auth/register")
@@ -1067,6 +938,164 @@ async def submit_feedback(
     except Exception as e:
         logger.error(f"Feedback error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# Payment Verification Routes
+@api_router.post("/premium/verify-payment")
+async def verify_manual_payment(
+    payment_data: PaymentVerification,
+    current_user: dict = Depends(get_current_user)
+):
+    """Submit manual UPI payment for verification"""
+    try:
+        user_id = str(current_user["_id"])
+        
+        # Store payment request
+        payment_record = {
+            "user_id": ObjectId(user_id),
+            "user_email": current_user["email"],
+            "user_name": current_user["name"],
+            "plan": payment_data.plan,
+            "amount": payment_data.amount,
+            "transaction_id": payment_data.transaction_id,
+            "payment_method": "manual_upi",
+            "auto_renew": payment_data.auto_renew,
+            "status": "pending",
+            "submitted_at": datetime.utcnow(),
+            "verified_at": None,
+            "verified_by": None
+        }
+        
+        result = await db.payments.insert_one(payment_record)
+        
+        logger.info(f"PAYMENT SUBMITTED - User: {current_user['email']}, Plan: {payment_data.plan}, Amount: ₹{payment_data.amount}, TxnID: {payment_data.transaction_id}")
+        
+        return {
+            "message": "Payment submitted successfully! We'll verify and activate your premium access within 24 hours.",
+            "payment_id": str(result.inserted_id),
+            "status": "pending_verification"
+        }
+    except Exception as e:
+        logger.error(f"Payment verification error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Razorpay Integration
+@api_router.post("/premium/razorpay/create-order")
+async def create_razorpay_order(
+    plan: str,
+    amount: int,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create Razorpay order for premium subscription"""
+    try:
+        # Get Razorpay keys from environment
+        RAZORPAY_KEY = os.environ.get('RAZORPAY_KEY_ID', '')
+        RAZORPAY_SECRET = os.environ.get('RAZORPAY_KEY_SECRET', '')
+        
+        if not RAZORPAY_KEY or not RAZORPAY_SECRET:
+            raise HTTPException(status_code=500, detail="Razorpay not configured. Please contact support.")
+        
+        import razorpay
+        client = razorpay.Client(auth=(RAZORPAY_KEY, RAZORPAY_SECRET))
+        
+        # Create order
+        order_data = {
+            "amount": amount * 100,  # Convert to paise
+            "currency": "INR",
+            "receipt": f"rcpt_{current_user['email']}_{int(datetime.utcnow().timestamp())}",
+            "notes": {
+                "user_id": str(current_user["_id"]),
+                "plan": plan,
+                "email": current_user["email"]
+            }
+        }
+        
+        order = client.order.create(data=order_data)
+        
+        # Store order in database
+        await db.payments.insert_one({
+            "user_id": ObjectId(str(current_user["_id"])),
+            "user_email": current_user["email"],
+            "user_name": current_user["name"],
+            "plan": plan,
+            "amount": amount,
+            "payment_method": "razorpay",
+            "razorpay_order_id": order['id'],
+            "status": "created",
+            "created_at": datetime.utcnow()
+        })
+        
+        return {
+            "order_id": order['id'],
+            "amount": amount,
+            "currency": "INR",
+            "key_id": RAZORPAY_KEY
+        }
+    except Exception as e:
+        logger.error(f"Razorpay order creation error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/premium/razorpay/verify")
+async def verify_razorpay_payment(
+    razorpay_order_id: str,
+    razorpay_payment_id: str,
+    razorpay_signature: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Verify Razorpay payment and activate premium"""
+    try:
+        import razorpay
+        RAZORPAY_KEY = os.environ.get('RAZORPAY_KEY_ID', '')
+        RAZORPAY_SECRET = os.environ.get('RAZORPAY_KEY_SECRET', '')
+        
+        client = razorpay.Client(auth=(RAZORPAY_KEY, RAZORPAY_SECRET))
+        
+        # Verify signature
+        params_dict = {
+            'razorpay_order_id': razorpay_order_id,
+            'razorpay_payment_id': razorpay_payment_id,
+            'razorpay_signature': razorpay_signature
+        }
+        
+        client.utility.verify_payment_signature(params_dict)
+        
+        # Payment verified - activate premium
+        user_id = str(current_user["_id"])
+        expire_date = datetime.utcnow() + timedelta(days=30)
+        
+        # Update user to premium
+        await db.users.update_one(
+            {"_id": ObjectId(user_id)},
+            {
+                "$set": {
+                    "is_premium": True,
+                    "premium_expires": expire_date,
+                    "premium_activated_at": datetime.utcnow()
+                }
+            }
+        )
+        
+        # Update payment record
+        await db.payments.update_one(
+            {"razorpay_order_id": razorpay_order_id},
+            {
+                "$set": {
+                    "status": "success",
+                    "razorpay_payment_id": razorpay_payment_id,
+                    "verified_at": datetime.utcnow()
+                }
+            }
+        )
+        
+        logger.info(f"PREMIUM ACTIVATED - User: {current_user['email']}, Payment ID: {razorpay_payment_id}")
+        
+        return {
+            "message": "Premium activated successfully!",
+            "premium_expires": expire_date,
+            "unlocked_characters": ["krishna", "bhima", "karna", "yudhishthira", "draupadi", "shakuni"]
+        }
+    except Exception as e:
+        logger.error(f"Razorpay verification error: {e}")
+        raise HTTPException(status_code=400, detail="Payment verification failed")
 
 # Health check
 @api_router.get("/health")

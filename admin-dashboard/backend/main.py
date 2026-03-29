@@ -318,6 +318,136 @@ async def get_feedback(skip: int = 0, limit: int = 50, admin: dict = Depends(get
     
     return {"feedback": result}
 
+# Payment Management
+@app.get("/api/admin/payments")
+async def get_payments(
+    status: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 50,
+    admin: dict = Depends(get_current_admin)
+):
+    """Get all payment submissions with optional status filter"""
+    query = {}
+    if status:
+        query["status"] = status
+    
+    payments = await db.payments.find(query).sort("submitted_at", -1).skip(skip).limit(limit).to_list(limit)
+    total = await db.payments.count_documents(query)
+    
+    result = []
+    for p in payments:
+        result.append({
+            "id": str(p["_id"]),
+            "user_name": p.get("user_name", "Unknown"),
+            "user_email": p.get("user_email", "Unknown"),
+            "plan": p.get("plan", "Unknown"),
+            "amount": p.get("amount", 0),
+            "transaction_id": p.get("transaction_id", ""),
+            "payment_method": p.get("payment_method", "manual_upi"),
+            "status": p.get("status", "pending"),
+            "submitted_at": p.get("submitted_at", p.get("created_at")),
+            "verified_at": p.get("verified_at"),
+            "auto_renew": p.get("auto_renew", False)
+        })
+    
+    return {"payments": result, "total": total}
+
+@app.put("/api/admin/payments/{payment_id}/approve")
+async def approve_payment(payment_id: str, admin: dict = Depends(get_current_admin)):
+    """Approve manual payment and activate premium"""
+    if admin["role"] != "super_admin":
+        raise HTTPException(status_code=403, detail="Only super admin can approve payments")
+    
+    try:
+        # Get payment record
+        payment = await db.payments.find_one({"_id": ObjectId(payment_id)})
+        if not payment:
+            raise HTTPException(status_code=404, detail="Payment not found")
+        
+        # Activate premium for user
+        user_id = payment["user_id"]
+        expire_date = datetime.utcnow() + timedelta(days=30)
+        
+        await db.users.update_one(
+            {"_id": user_id},
+            {
+                "$set": {
+                    "is_premium": True,
+                    "premium_expires": expire_date,
+                    "premium_activated_at": datetime.utcnow()
+                }
+            }
+        )
+        
+        # Update payment status
+        await db.payments.update_one(
+            {"_id": ObjectId(payment_id)},
+            {
+                "$set": {
+                    "status": "approved",
+                    "verified_at": datetime.utcnow(),
+                    "verified_by": str(admin["_id"])
+                }
+            }
+        )
+        
+        return {"message": "Payment approved and premium activated"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/admin/payments/{payment_id}/reject")
+async def reject_payment(
+    payment_id: str,
+    reason: str = "Invalid transaction",
+    admin: dict = Depends(get_current_admin)
+):
+    """Reject manual payment"""
+    if admin["role"] != "super_admin":
+        raise HTTPException(status_code=403, detail="Only super admin can reject payments")
+    
+    await db.payments.update_one(
+        {"_id": ObjectId(payment_id)},
+        {
+            "$set": {
+                "status": "rejected",
+                "rejected_at": datetime.utcnow(),
+                "rejected_by": str(admin["_id"]),
+                "rejection_reason": reason
+            }
+        }
+    )
+    
+    return {"message": "Payment rejected"}
+
+@app.get("/api/admin/revenue-stats")
+async def get_revenue_stats(admin: dict = Depends(get_current_admin)):
+    """Get revenue statistics"""
+    # Total revenue from approved/success payments
+    approved_payments = await db.payments.find({"status": {"$in": ["approved", "success"]}}).to_list(1000)
+    
+    total_revenue = sum(p.get("amount", 0) for p in approved_payments)
+    
+    # Count by payment method
+    upi_count = len([p for p in approved_payments if p.get("payment_method") == "manual_upi"])
+    razorpay_count = len([p for p in approved_payments if p.get("payment_method") == "razorpay"])
+    
+    # Pending payments
+    pending_count = await db.payments.count_documents({"status": "pending"})
+    pending_revenue = sum(p.get("amount", 0) for p in await db.payments.find({"status": "pending"}).to_list(100))
+    
+    # Premium users count
+    premium_users = await db.users.count_documents({"is_premium": True})
+    
+    return {
+        "total_revenue": total_revenue,
+        "total_transactions": len(approved_payments),
+        "upi_transactions": upi_count,
+        "razorpay_transactions": razorpay_count,
+        "pending_approvals": pending_count,
+        "pending_revenue": pending_revenue,
+        "premium_users": premium_users
+    }
+
 # Health Check
 @app.get("/api/admin/health")
 async def health():
