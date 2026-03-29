@@ -535,7 +535,10 @@ async def register(request: Request, user_data: UserRegister):
             "email": user_data.email,
             "password": hashed_password,
             "created_at": datetime.utcnow(),
-            "total_chats": 0
+            "total_chats": 0,
+            "is_premium": False,
+            "premium_expires": None,
+            "selected_character": "arjun"
         }
         
         result = await db.users.insert_one(new_user)
@@ -670,9 +673,12 @@ async def send_chat_message(
     message_data: ChatMessage,
     current_user: dict = Depends(get_current_user)
 ):
-    """Send a message to Arjun AI"""
+    """Send a message to Arjun AI with multi-character support"""
     try:
         user_id = str(current_user["_id"])
+        
+        # Get user's premium status
+        user_is_premium = current_user.get("is_premium", False)
         
         # Get recent chat history for context
         recent_chats = await db.chats.find(
@@ -683,36 +689,57 @@ async def send_chat_message(
         # Reverse to get chronological order
         recent_chats = list(reversed(recent_chats))
         
-        # Get AI response with mode and context
-        ai_response = await get_ai_response(
+        # Get AI response with character system
+        ai_result = await get_ai_response(
             message_data.message, 
             user_id, 
             message_data.mode,
-            recent_chats
+            message_data.character,
+            recent_chats,
+            user_is_premium
         )
+        
+        # Check if this was a premium prompt (user tried to access locked character)
+        if ai_result.get("is_premium_prompt", False):
+            return {
+                "id": "premium_prompt",
+                "message": message_data.message,
+                "response": ai_result["response"],
+                "mode": message_data.mode,
+                "character": "arjun",  # Still on Arjun
+                "is_premium_prompt": True,
+                "requested_character": ai_result.get("requested_character"),
+                "timestamp": datetime.utcnow()
+            }
         
         # Save chat to database
         chat_entry = {
             "user_id": ObjectId(user_id),
             "message": message_data.message,
-            "response": ai_response,
+            "response": ai_result["response"],
             "mode": message_data.mode,
+            "character": ai_result.get("character_used", message_data.character),
             "timestamp": datetime.utcnow()
         }
         
         result = await db.chats.insert_one(chat_entry)
         
-        # Update user's total chats count
+        # Update user's total chats count and selected character
         await db.users.update_one(
             {"_id": ObjectId(user_id)},
-            {"$inc": {"total_chats": 1}}
+            {
+                "$inc": {"total_chats": 1},
+                "$set": {"selected_character": ai_result.get("character_used", message_data.character)}
+            }
         )
         
         return {
             "id": str(result.inserted_id),
             "message": message_data.message,
-            "response": ai_response,
+            "response": ai_result["response"],
             "mode": message_data.mode,
+            "character": ai_result.get("character_used", message_data.character),
+            "is_premium_prompt": False,
             "timestamp": chat_entry["timestamp"]
         }
     except Exception as e:
@@ -777,7 +804,10 @@ async def get_profile(current_user: dict = Depends(get_current_user)):
             "name": current_user["name"],
             "email": current_user["email"],
             "created_at": current_user["created_at"],
-            "total_chats": current_user.get("total_chats", 0)
+            "total_chats": current_user.get("total_chats", 0),
+            "is_premium": current_user.get("is_premium", False),
+            "premium_expires": current_user.get("premium_expires"),
+            "selected_character": current_user.get("selected_character", "arjun")
         }
     except Exception as e:
         logger.error(f"Get profile error: {e}")
@@ -801,6 +831,62 @@ async def update_profile(
     except Exception as e:
         logger.error(f"Update profile error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# Premium Routes
+@api_router.post("/premium/upgrade")
+async def upgrade_to_premium(
+    months: int = 1,
+    current_user: dict = Depends(get_current_user)
+):
+    """Upgrade user to premium (payment integration needed)"""
+    try:
+        user_id = str(current_user["_id"])
+        
+        # Calculate premium expiry
+        expire_date = datetime.utcnow() + timedelta(days=30 * months)
+        
+        # Update user to premium
+        # NOTE: In production, verify payment first before updating
+        await db.users.update_one(
+            {"_id": ObjectId(user_id)},
+            {
+                "$set": {
+                    "is_premium": True,
+                    "premium_expires": expire_date,
+                    "premium_activated_at": datetime.utcnow()
+                }
+            }
+        )
+        
+        return {
+            "message": "Successfully upgraded to premium!",
+            "premium_expires": expire_date,
+            "unlocked_characters": ["krishna", "bhima", "karna", "yudhishthira", "draupadi", "shakuni"]
+        }
+    except Exception as e:
+        logger.error(f"Premium upgrade error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/premium/status")
+async def get_premium_status(current_user: dict = Depends(get_current_user)):
+    """Get user's premium status"""
+    is_premium = current_user.get("is_premium", False)
+    premium_expires = current_user.get("premium_expires")
+    
+    # Check if premium has expired
+    if is_premium and premium_expires and premium_expires < datetime.utcnow():
+        # Premium expired, downgrade user
+        await db.users.update_one(
+            {"_id": current_user["_id"]},
+            {"$set": {"is_premium": False, "selected_character": "arjun"}}
+        )
+        is_premium = False
+    
+    return {
+        "is_premium": is_premium,
+        "premium_expires": premium_expires,
+        "available_characters": ["arjun"] if not is_premium else ["arjun", "krishna", "bhima", "karna", "yudhishthira", "draupadi", "shakuni"]
+    }
 
 # Daily Shloka Routes
 @api_router.get("/daily-shloka")
